@@ -7,7 +7,7 @@ provider "aws" {
 ##############################################################################
 
 resource "aws_security_group" "kibana" {
-  name = "${var.security_group_name}-kibana"
+  name = "${var.security_group_name}"
   description = "Kibana ports with ssh"
   vpc_id = "${var.vpc_id}"
 
@@ -47,6 +47,7 @@ resource "template_file" "user_data" {
 
   vars {
     kibana_version          = "${var.kibana_version}"
+    consul_version          = "${var.consul_version}"
     dns_server              = "${var.dns_server}"
     consul_dc               = "${var.consul_dc}"
     atlas                   = "${var.atlas}"
@@ -85,7 +86,7 @@ resource "aws_autoscaling_group" "kibana" {
 
   tag {
     key = "Name"
-    value = "${format("kibana-%s", var.environment)}"
+    value = "${var.name}"
     propagate_at_launch = true
   }
   tag {

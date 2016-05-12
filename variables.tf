@@ -23,6 +23,10 @@ variable "environment" {
   default = "default"
 }
 
+variable "name" {
+  default = "kibana"
+}
+
 ###################################################################
 # AWS configuration below
 ###################################################################
@@ -101,6 +105,9 @@ variable "additional_security_groups" {
 ###################################################################
 # Consul configuration below
 ###################################################################
+variable "consul_version" {
+  default = "0.6.4"
+}
 
 variable "dns_server" {
 }

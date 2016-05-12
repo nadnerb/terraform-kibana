@@ -5,6 +5,8 @@ set -e
 #
 # Configure kibana
 
+BIND=`ifconfig eth0 | grep "inet addr" | awk '{ print substr($2,6) }'`
+
 rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch
 
 cat <<'EOF' >/etc/yum.repos.d/kibana.repo
@@ -18,6 +20,21 @@ EOF
 
 sudo yum install -y kibana
 sudo /opt/kibana/bin/kibana plugin --install elasticsearch/marvel/latest
+sudo chown -R kibana /opt/kibana
+
+# Install consul agent
+echo "Fetching Consul..."
+
+cd /tmp
+curl -L -o consul.zip https://releases.hashicorp.com/consul/${consul_version}/consul_${consul_version}_linux_amd64.zip
+
+echo "Installing Consul..."
+unzip consul.zip >/dev/null
+sudo chmod +x consul
+sudo mv consul /usr/local/bin/consul
+sudo mkdir -p /etc/consul.d
+sudo mkdir -p /mnt/consul
+sudo mkdir -p /etc/service
 
 # Configure the consul agent
 cat <<EOF >/tmp/consul.json
@@ -93,10 +110,30 @@ cat <<'EOF' >/tmp/kibana-consul.json
 EOF
 sudo mv /tmp/kibana-consul.json /etc/consul.d/kibana.json
 
-# Start Kibana
-sudo chkconfig --add kibana
-sudo service kibana start
+# Install and configure DNSMasq
+sudo yum install -y dnsmasq
+
+sudo echo "server=/consul/127.0.0.1#8600" >> /etc/dnsmasq.conf
+
+sudo sed -i '/nameserver ${dns_server}/i \
+nameserver 127.0.0.1' /etc/resolv.conf
+
+#Configure Kibana
+cat <<EOF >/tmp/kibana.yml
+server.host: "$$BIND"
+elasticsearch_url: "http://elasticsearch.service.consul:9200"
+elasticsearch_preserve_host: true
+EOF
+sudo mv /opt/kibana/config/kibana.yml /opt/kibana/config/kibana.yml.orig
+sudo mv /tmp/kibana.yml /opt/kibana/config/
 
 # Start Consul
 sudo start consul
 
+# Start DNSMasq
+sudo chkconfig --add dnsmasq
+sudo service dnsmasq start
+
+# Start Kibana
+sudo chkconfig --add kibana
+sudo service kibana start
